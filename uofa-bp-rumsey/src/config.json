@@ -1,0 +1,23 @@
+{
+  "DESIGN_NAME": "picorv32_bp_top",
+  "VERILOG_FILES": [
+    "dir::picorv32.v",
+    "dir::neural_bht.v",
+    "dir::sky130_sram_2k_behav.v",
+    "dir::picorv32_bp_top.v"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 40,
+  "FP_SIZING": "relative",
+  "FP_CORE_UTIL": 40,
+  "PL_TARGET_DENSITY_PCT": 50,
+  "PL_RESIZER_HOLD_SLACK_MARGIN": 0.1,
+  "GRT_RESIZER_HOLD_SLACK_MARGIN": 0.05,
+  "GRT_ALLOW_CONGESTION": 1,
+  "RUN_KLAYOUT_XOR": 0,
+  "RUN_KLAYOUT_DRC": 0,
+  "DESIGN_REPAIR_BUFFER_OUTPUT_PORTS": 0,
+  "RUN_CTS": 1,
+  "MAGIC_DEF_LABELS": 0,
+  "MAGIC_WRITE_LEF_PINONLY": 1
+}
