@@ -1,9 +1,10 @@
 # AI-HDL Tapeout — sky130A, signed-off GDSII
 
-10 designs, SkyWater sky130A, LibreLane 3.0.5 / OpenROAD. Sign-off September 2026.
+11 designs, SkyWater sky130A, LibreLane 3.0.5 / OpenROAD. Sign-off September 2026.
 
 | Design | GDSII | DRC | LVS | Metrics |
 |---|---|---|---|---|
+| slm-soc | [gds.xz](slm-soc/gds/kgubbi_slm_soc.gds.xz) | [0 violations](slm-soc/signoff/drc.magic.rpt) | [clean](slm-soc/signoff/lvs.netgen.rpt) | [metrics](slm-soc/signoff/metrics.json) |
 | itims-spi | [gds](itims-spi/gds/tt_um_itims_spi.gds) | [0 violations](itims-spi/signoff/drc.magic.rpt) | [clean](itims-spi/signoff/lvs.netgen.rpt) | [metrics](itims-spi/signoff/metrics.json) |
 | necrl-aes128 | [gds](necrl-aes128/gds/tt_um_necrl_aes128.gds) | [0 violations](necrl-aes128/signoff/drc.magic.rpt) | [clean](necrl-aes128/signoff/lvs.netgen.rpt) | [metrics](necrl-aes128/signoff/metrics.json) |
 | uofa-traffic | [gds](uofa-traffic/gds/tt_um_uofa_traffic.gds) | [0 violations](uofa-traffic/signoff/drc.magic.rpt) | [clean](uofa-traffic/signoff/lvs.netgen.rpt) | [metrics](uofa-traffic/signoff/metrics.json) |
