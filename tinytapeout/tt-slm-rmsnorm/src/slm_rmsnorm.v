@@ -3,7 +3,7 @@
  * 0x3002_0000).
  *
  * RMSNorm mode:  ms = (sum x_i^2) / N + eps   (the /N is a right shift by
- *                log2(N), N in {8, 16, 32, 64}), r = invsqrt(ms) in Q1.15,
+ *                log2(N), N in {8, 16} in this tile build; scratches depth-reduced), r = invsqrt(ms) in Q1.15,
  *                y_i = sat8( (x_i * r * g_i) >>> (21 - out_shift) )
  *                with gamma g_i signed INT8 interpreted Q1.6.
  * LayerNorm mode: pre-pass mu = (sum x_i) >>> log2(N) (arithmetic), then the
@@ -19,9 +19,9 @@
  *   0x0008 CFG    (RW) [6:0] N, b7 mode (0 = RMS / 1 = Layer), b8 irq_en,
  *                      [20:16] out_shift 0..15
  *   0x000C EPS    (RW) u32, reset 1
- *   0x0100-0x01FC x scratch, signed INT8 per word [7:0]; result overwrites
+ *   0x0100-0x013C x scratch (16 words), signed INT8 per word [7:0]; result overwrites
  *                 byte 0 (upper bytes preserved as written)
- *   0x0200-0x02FC gamma scratch, signed INT8 per word [7:0]
+ *   0x0200-0x023C gamma scratch (16 words), signed INT8 per word [7:0]
  * Undefined offsets read 0. irq = done & irq_en (level).
  * Caveat: out_shift > 21 is outside the contract (CFG documents 0..15) and
  * produces an implementation-defined shift amount.
@@ -70,12 +70,12 @@ module slm_rmsnorm (
   reg [15:0] r_q;         // invsqrt result, Q1.15
   reg [6:0]  idx;         // element index
 
-  reg [31:0] xmem [0:63]; // x / result scratch
-  reg [31:0] gmem [0:63]; // gamma scratch
+  reg [31:0] xmem [0:15]; // x / result scratch (tile: 16 words, N <= 16)
+  reg [31:0] gmem [0:15]; // gamma scratch (tile: 16 words)
 
   integer k;
   initial begin
-    for (k = 0; k < 64; k = k + 1) begin
+    for (k = 0; k < 16; k = k + 1) begin
       xmem[k] = 32'd0;
       gmem[k] = 32'd0;
     end
@@ -96,7 +96,7 @@ module slm_rmsnorm (
   wire        is_x   = (s_req_addr[15:8] == 8'h01);
   wire        is_g   = (s_req_addr[15:8] == 8'h02);
   wire        is_lo  = (s_req_addr[15:8] == 8'h00);
-  wire [5:0]  scr_ix = s_req_addr[7:2];
+  wire [3:0]  scr_ix = s_req_addr[5:2];
 
   wire start_w = csr_wr & is_lo & (s_req_addr[7:2] == 6'd0) &
                  s_req_wstrb[0] & s_req_wdata[0];
@@ -137,7 +137,7 @@ module slm_rmsnorm (
   assign s_rsp_rdata = rsp_d;
 
   // -------------------------------------------------------------- datapath
-  wire signed [7:0] x_cur = xmem[idx[5:0]][7:0];
+  wire signed [7:0] x_cur = xmem[idx[3:0]][7:0];
   wire signed [9:0] xd    = {{2{x_cur[7]}}, x_cur} - {mu[8], mu};
 
   // mean pre-pass
@@ -164,7 +164,7 @@ module slm_rmsnorm (
   );
 
   // output stage: y = sat8( (xd * r * g) >>> (21 - out_shift) )
-  wire signed [7:0]  g_cur = gmem[idx[5:0]][7:0];
+  wire signed [7:0]  g_cur = gmem[idx[3:0]][7:0];
   wire signed [16:0] r_s   = {1'b0, r_q};
   wire signed [26:0] p1    = xd * r_s;
   wire signed [34:0] p2    = p1 * g_cur;
@@ -275,7 +275,7 @@ module slm_rmsnorm (
         end
 
         S_OUT: begin
-          xmem[idx[5:0]][7:0] <= y_sat;
+          xmem[idx[3:0]][7:0] <= y_sat;
           if (idx == n_r - 7'd1) begin
             state  <= S_IDLE;
             done_r <= 1'b1;

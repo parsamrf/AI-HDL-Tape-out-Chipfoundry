@@ -1,7 +1,7 @@
 /*
  * slm_gemm_ctrl — INT8 weight-stationary systolic GEMM engine, top level.
  *
- * R[m][n] = requant( sum_k A[m][k] * W[k][n] ), A: Mx8 INT8 (M = 1..64),
+ * R[m][n] = requant( sum_k A[m][k] * W[k][n] ), A: Mx8 INT8 (M = 1..16 in this tile build; buffers depth-reduced),
  * W: 8x8 INT8, INT32 accumulate, requantized to INT8 through the shared
  * slm_requant (SCALE/SHIFT/ZP CSRs). Instantiates slm_gemm_array,
  * slm_gemm_acc, and slm_requant.
@@ -17,9 +17,9 @@
  *   0x001C KV_ADDR(RW, byte addr into KV window, word-aligned)
  *   0x0100-0x013C weight buffer, 16 words: word i byte j = W[f/8][f%8],
  *                 f = 4*i+j (row-major k,n)
- *   0x0200-0x03FC activation buffer, 128 words: row m in words {2m, 2m+1},
+ *   0x0200-0x027C activation buffer, 32 words: row m in words {2m, 2m+1},
  *                 byte j = A[m][4*(word&1)+j]
- *   0x0400-0x05FC result buffer, 128 words, same packing (R)
+ *   0x0400-0x047C result buffer, 32 words, same packing (R)
  *
  * FSM: LOAD_W (8 cycles, one weight row per cycle) -> per activation row:
  * FETCH (local buffer, or KV0/KV1 word reads at KV_ADDR + 8*m, +4) -> FEED
@@ -80,14 +80,14 @@ module slm_gemm_ctrl (
   reg        done_r;
 
   reg [31:0] wbuf [0:15];
-  reg [31:0] abuf [0:127];
-  reg [31:0] rbuf [0:127];
+  reg [31:0] abuf [0:31];   // tile: 32 words, M <= 16
+  reg [31:0] rbuf [0:31];   // tile: 32 words, M <= 16
 
   integer ib;
   initial begin
     for (ib = 0; ib < 16; ib = ib + 1)
       wbuf[ib] = 32'h0;
-    for (ib = 0; ib < 128; ib = ib + 1) begin
+    for (ib = 0; ib < 32; ib = ib + 1) begin
       abuf[ib] = 32'h0;
       rbuf[ib] = 32'h0;
     end
@@ -134,9 +134,9 @@ module slm_gemm_ctrl (
     end else if (sel_wbuf) begin
       rd_data = wbuf[s_req_addr[5:2]];
     end else if (sel_abuf) begin
-      rd_data = abuf[s_req_addr[8:2]];
+      rd_data = abuf[s_req_addr[6:2]];
     end else if (sel_rbuf) begin
-      rd_data = rbuf[s_req_addr[8:2]];
+      rd_data = rbuf[s_req_addr[6:2]];
     end
   end
 
@@ -255,7 +255,7 @@ module slm_gemm_ctrl (
         end
         S_FETCH: begin
           if (!cfg_src_sel) begin
-            act_row  <= {abuf[{m_cur[5:0], 1'b1}], abuf[{m_cur[5:0], 1'b0}]};
+            act_row  <= {abuf[{m_cur[3:0], 1'b1}], abuf[{m_cur[3:0], 1'b0}]};
             feed_cnt <= 3'd0;
             state    <= S_FEED;
           end else begin
@@ -306,10 +306,10 @@ module slm_gemm_ctrl (
       // requantized result byte writeback into the result buffer
       if (res_valid) begin
         case (res_col[1:0])
-          2'd0:    rbuf[{m_cur[5:0], res_col[2]}][7:0]   <= res_q;
-          2'd1:    rbuf[{m_cur[5:0], res_col[2]}][15:8]  <= res_q;
-          2'd2:    rbuf[{m_cur[5:0], res_col[2]}][23:16] <= res_q;
-          default: rbuf[{m_cur[5:0], res_col[2]}][31:24] <= res_q;
+          2'd0:    rbuf[{m_cur[3:0], res_col[2]}][7:0]   <= res_q;
+          2'd1:    rbuf[{m_cur[3:0], res_col[2]}][15:8]  <= res_q;
+          2'd2:    rbuf[{m_cur[3:0], res_col[2]}][23:16] <= res_q;
+          default: rbuf[{m_cur[3:0], res_col[2]}][31:24] <= res_q;
         endcase
       end
 
@@ -362,10 +362,10 @@ module slm_gemm_ctrl (
           if (s_req_wstrb[2]) wbuf[s_req_addr[5:2]][23:16] <= s_req_wdata[23:16];
           if (s_req_wstrb[3]) wbuf[s_req_addr[5:2]][31:24] <= s_req_wdata[31:24];
         end else if (sel_abuf) begin
-          if (s_req_wstrb[0]) abuf[s_req_addr[8:2]][7:0]   <= s_req_wdata[7:0];
-          if (s_req_wstrb[1]) abuf[s_req_addr[8:2]][15:8]  <= s_req_wdata[15:8];
-          if (s_req_wstrb[2]) abuf[s_req_addr[8:2]][23:16] <= s_req_wdata[23:16];
-          if (s_req_wstrb[3]) abuf[s_req_addr[8:2]][31:24] <= s_req_wdata[31:24];
+          if (s_req_wstrb[0]) abuf[s_req_addr[6:2]][7:0]   <= s_req_wdata[7:0];
+          if (s_req_wstrb[1]) abuf[s_req_addr[6:2]][15:8]  <= s_req_wdata[15:8];
+          if (s_req_wstrb[2]) abuf[s_req_addr[6:2]][23:16] <= s_req_wdata[23:16];
+          if (s_req_wstrb[3]) abuf[s_req_addr[6:2]][31:24] <= s_req_wdata[31:24];
         end
       end
     end

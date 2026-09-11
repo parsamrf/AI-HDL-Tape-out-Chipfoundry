@@ -14,7 +14,7 @@ This tile is the RMSNorm/LayerNorm accelerator of a small-language-model
 SoC is too large for a single TinyTapeout slot, so it was split into
 per-block tiles.
 
-RMSNorm mode computes, over N ∈ {8, 16, 32, 64} signed INT8 inputs:
+RMSNorm mode computes, over N ∈ {8, 16} signed INT8 inputs (the SoC block supports up to 64; this tile build depth-reduces the scratches to fit the tile budget):
 
 - `ms = (sum x_i²) >> log2(N) + EPS`
 - `r = round(32768 / sqrt(ms))` — a Q1.15 inverse square root, exactly

@@ -44,18 +44,22 @@ template's `test` workflow runs).
 
 The SLM accelerator SoC is too large for any single tile (~20x an 8x2), so it
 was split into six single-block TinyTapeout tiles along its internal bus
-boundaries. Block RTL is unmodified; each block's native CSR bus port is
-exposed over a 32-bit SPI register bridge so every tile is fully
-bench-testable stand-alone, and the CPU tile carries a boot-ROM self-test
-with results on the pins.
+boundaries. Block logic and register maps are unmodified (two tiles carry
+documented scratch-buffer depth reductions for tile fit); each block's native
+CSR bus port is exposed over a 32-bit SPI register bridge so every tile is
+fully bench-testable stand-alone, and the CPU tile carries a boot-ROM
+self-test with results on the pins. All tile sizes are pre-checked against
+sky130-mapped synthesis area. Note: tt-slm-gemm is simulation-complete but
+its 64-PE systolic array (~0.44 mm²) exceeds the largest tile size — it
+needs a custom slot or a future run (see its README/handoff notes).
 
 | Project | top_module | tiles |
 |---|---|---|
 | [tt-slm-cpu](tinytapeout/tt-slm-cpu) | tt_um_slm_cpu | 8x2 |
-| [tt-slm-gemm](tinytapeout/tt-slm-gemm) | tt_um_slm_gemm | 8x2 |
-| [tt-slm-softmax](tinytapeout/tt-slm-softmax) | tt_um_slm_softmax | 6x2 |
+| [tt-slm-gemm](tinytapeout/tt-slm-gemm) | tt_um_slm_gemm | 8x2 (exceeds — custom slot needed) |
+| [tt-slm-softmax](tinytapeout/tt-slm-softmax) | tt_um_slm_softmax | 8x2 |
 | [tt-slm-rmsnorm](tinytapeout/tt-slm-rmsnorm) | tt_um_slm_rmsnorm | 8x2 |
-| [tt-slm-kv](tinytapeout/tt-slm-kv) | tt_um_slm_kv | 4x2 |
+| [tt-slm-kv](tinytapeout/tt-slm-kv) | tt_um_slm_kv | 6x2 |
 | [tt-slm-dma](tinytapeout/tt-slm-dma) | tt_um_slm_dma | 6x2 |
 
 To submit any project for tapeout, create a public repo from the template,
