@@ -19,3 +19,35 @@
 All designs: Magic DRC **0 violations**, Netgen LVS **"Circuits match uniquely"**.
 RTL + hardening config under each design's `src/`. Large GDS are xz-compressed
 (`xz -dk <file>`). Apache-2.0.
+
+## TinyTapeout-format projects (`tinytapeout/`)
+
+For MPW integration via the ChipFoundry flow, each design is also provided as
+a complete [chipdiscover-verilog-template](https://github.com/chipfoundry/chipdiscover-verilog-template)
+project under `tinytapeout/`: `tt_um_*` top with the standard TinyTapeout
+pinout, completed `info.yaml` (v6, tile size set), datasheet `docs/info.md`,
+and cocotb tests in `test/` (all passing locally with the exact commands the
+template's `test` workflow runs).
+
+| Project | top_module | tiles |
+|---|---|---|
+| [tt-uofa-traffic](tinytapeout/tt-uofa-traffic) | tt_um_uofa_traffic | 1x1 |
+| [tt-itims-spi](tinytapeout/tt-itims-spi) | tt_um_itims_spi | 2x2 |
+| [tt-necrl-aes128](tinytapeout/tt-necrl-aes128) | tt_um_necrl_aes128 | 4x2 |
+| [tt-uofa-vec-coproc](tinytapeout/tt-uofa-vec-coproc) | tt_um_vec_coproc | 4x2 |
+| [tt-uofa-vec-proc](tinytapeout/tt-uofa-vec-proc) | tt_um_vec_proc | 8x2 |
+| [tt-uofa-mul](tinytapeout/tt-uofa-mul) | tt_um_mul_soc | 8x2 |
+| [tt-uofa-gpio](tinytapeout/tt-uofa-gpio) | tt_um_gpio_soc | 8x2 |
+| [tt-uofa-bp](tinytapeout/tt-uofa-bp) | tt_um_bp_soc | 8x2 |
+| [tt-uofa-bmu](tinytapeout/tt-uofa-bmu) | tt_um_bmu_soc | 6x2 |
+| [tt-uofa-bmi](tinytapeout/tt-uofa-bmi) | tt_um_bmi_soc | 6x2 |
+
+To submit one for tapeout, create a public repo from the template, copy the
+project's contents over it, and enable GitHub Actions (`test` → `gds` →
+`precheck` → `gl_test` run on push).
+
+The SLM accelerator SoC is too large for any single tile (~20x an 8x2), so it
+was additionally split into six single-block TinyTapeout tiles (RV32IM CPU,
+GEMM, softmax, RMSNorm, KV cache, DMA) with each block's native CSR bus port
+exposed over a 32-bit SPI register bridge; those tile projects are submitted
+separately for MPW integration.
