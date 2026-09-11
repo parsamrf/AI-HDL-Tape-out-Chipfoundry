@@ -42,12 +42,22 @@ template's `test` workflow runs).
 | [tt-uofa-bmu](tinytapeout/tt-uofa-bmu) | tt_um_bmu_soc | 6x2 |
 | [tt-uofa-bmi](tinytapeout/tt-uofa-bmi) | tt_um_bmi_soc | 6x2 |
 
-To submit one for tapeout, create a public repo from the template, copy the
-project's contents over it, and enable GitHub Actions (`test` → `gds` →
-`precheck` → `gl_test` run on push).
-
 The SLM accelerator SoC is too large for any single tile (~20x an 8x2), so it
-was additionally split into six single-block TinyTapeout tiles (RV32IM CPU,
-GEMM, softmax, RMSNorm, KV cache, DMA) with each block's native CSR bus port
-exposed over a 32-bit SPI register bridge; those tile projects are submitted
-separately for MPW integration.
+was split into six single-block TinyTapeout tiles along its internal bus
+boundaries. Block RTL is unmodified; each block's native CSR bus port is
+exposed over a 32-bit SPI register bridge so every tile is fully
+bench-testable stand-alone, and the CPU tile carries a boot-ROM self-test
+with results on the pins.
+
+| Project | top_module | tiles |
+|---|---|---|
+| [tt-slm-cpu](tinytapeout/tt-slm-cpu) | tt_um_slm_cpu | 8x2 |
+| [tt-slm-gemm](tinytapeout/tt-slm-gemm) | tt_um_slm_gemm | 8x2 |
+| [tt-slm-softmax](tinytapeout/tt-slm-softmax) | tt_um_slm_softmax | 6x2 |
+| [tt-slm-rmsnorm](tinytapeout/tt-slm-rmsnorm) | tt_um_slm_rmsnorm | 8x2 |
+| [tt-slm-kv](tinytapeout/tt-slm-kv) | tt_um_slm_kv | 4x2 |
+| [tt-slm-dma](tinytapeout/tt-slm-dma) | tt_um_slm_dma | 6x2 |
+
+To submit any project for tapeout, create a public repo from the template,
+copy the project's contents over it, and enable GitHub Actions (`test` →
+`gds` → `precheck` → `gl_test` run on push).
