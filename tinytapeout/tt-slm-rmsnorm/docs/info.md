@@ -26,6 +26,14 @@ LayerNorm mode adds a mean pre-pass and normalizes `x_i − mu`. The result is
 bit-defined — the included test checks outputs exactly, not within a
 tolerance.
 
+Tile-fit note: to harden into an 8x2 tile, the invsqrt datapath in this build
+is (1) parameterized to a 21-bit operand (rmsnorm only ever feeds v ≤ 2²⁰,
+the module's documented [1, 2²⁰] range) and (2) resource-shares one
+squarer/multiplier across its mutually-exclusive search and rounding states.
+Both changes are **bit-identical** to the SoC block over the operating range —
+the cocotb test still passes bit-exact — they only reduce combinational area
+so the design routes in the tile.
+
 The block's own CSR interface (its SLB bus slave port) is exposed through a
 32-bit SPI register bridge with the identical register map the SoC's CPU
 uses: CTRL at 0x0000 (b0 start, b1 clear_done), STATUS at 0x0004 (b0 busy,

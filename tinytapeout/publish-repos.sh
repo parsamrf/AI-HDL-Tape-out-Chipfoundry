@@ -13,7 +13,13 @@ shift || true
 cd "$(dirname "$0")"
 
 PROJECTS=("$@")
-[ ${#PROJECTS[@]} -eq 0 ] && PROJECTS=(tt-*/)
+# Default: every project except tt-slm-gemm (per Jeff 2026-09-16: no
+# custom-size tile on CI2609, leave the GEMM engine off this chip).
+# Pass it explicitly to publish it anyway.
+if [ ${#PROJECTS[@]} -eq 0 ]; then
+  PROJECTS=()
+  for d in tt-*/; do [ "${d%/}" != "tt-slm-gemm" ] && PROJECTS+=("$d"); done
+fi
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
@@ -33,7 +39,12 @@ for p in "${PROJECTS[@]}"; do
   # 2. overlay the project contents on the template clone
   git clone -q "https://github.com/$OWNER/$name" "$WORK/$name"
   rm -f "$WORK/$name/src/project.v"          # template placeholder
-  rsync -a --exclude .git "$name/" "$WORK/$name/"
+  rsync -a --exclude .git --exclude tt --exclude runs \
+        --exclude "harden*.log" --exclude sim_build --exclude results.xml \
+        --exclude tb.vcd --exclude __pycache__ \
+        --exclude src/user_config.json --exclude src/config_merged.json \
+        --exclude src/user_defines.v \
+        "$name/" "$WORK/$name/"
   # 3. make sure Actions are enabled, then push (push triggers the workflows)
   gh api -X PUT "repos/$OWNER/$name/actions/permissions" \
       -F enabled=true -f allowed_actions=all >/dev/null || true

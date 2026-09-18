@@ -153,7 +153,7 @@ module slm_rmsnorm (
   wire        isq_done;
   wire [15:0] isq_r;
 
-  slm_invsqrt u_isq (
+  slm_invsqrt #(.VW(21)) u_isq (
     .clk   (clk),
     .rst_n (rst_n),
     .start (isq_go),

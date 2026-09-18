@@ -16,7 +16,9 @@
  */
 `default_nettype none
 
-module slm_invsqrt (
+module slm_invsqrt #(
+  parameter VW = 32   // v_r width; tile uses 21 (module contract v in [1,2^20])
+) (
   input  wire        clk,    // clock
   input  wire        rst_n,  // synchronous active-low reset
   input  wire        start,  // 1-cycle pulse; ignored while busy
@@ -32,27 +34,29 @@ module slm_invsqrt (
 
   reg [1:0]  state;
   reg        done_r;
-  reg [31:0] v_r;
+  reg [VW-1:0] v_r;
   reg [15:0] r_r;
   reg [3:0]  bit_i;
 
-  // search trial: t = r | (1 << bit_i); accept when t^2 * v <= 2^30
-  wire [15:0] t    = r_r | (16'd1 << bit_i);
-  wire [31:0] tt   = t * t;
-  wire [63:0] p    = tt * v_r;
-  wire        p_le = (p <= 64'h0000_0000_4000_0000);
-
-  // rounding trial: (2r + 1)^2 * v <= 2^32
+  // Search and rounding trials run in mutually-exclusive states (S_CALC vs
+  // S_ROUND), so they share ONE squarer and ONE multiplier — halving the
+  // dominant combinational area for tile routability. Bit-identical to the
+  // two-multiplier form:
+  //   S_CALC : t  = r | (1<<bit_i); accept when t^2  * v <= 2^30
+  //   S_ROUND: t2 = 2r + 1;         accept when t2^2 * v <= 2^32
+  wire [15:0] t     = r_r | (16'd1 << bit_i);
   wire [16:0] t2    = {r_r, 1'b1};
-  wire [33:0] t2q   = t2 * t2;
-  wire [65:0] p2    = t2q * v_r;
-  wire        p2_le = (p2 <= 66'h0_0000_0001_0000_0000);
+  wire [16:0] sq_in = (state == S_ROUND) ? t2 : {1'b0, t};
+  wire [33:0] sq    = sq_in * sq_in;               // shared squarer (17x17)
+  wire [33+VW:0] prod = sq * v_r;                  // shared multiplier (34xVW)
+  wire        p_le  = (prod <= {{(VW){1'b0}}, 34'h0_4000_0000});      // <= 2^30
+  wire        p2_le = (prod <= {{(VW-1){1'b0}}, 35'h1_0000_0000});    // <= 2^32
 
   always @(posedge clk) begin
     if (!rst_n) begin
       state  <= S_IDLE;
       done_r <= 1'b0;
-      v_r    <= 32'd1;
+      v_r    <= {{(VW-1){1'b0}}, 1'b1};
       r_r    <= 16'd0;
       bit_i  <= 4'd0;
     end else begin
@@ -60,7 +64,7 @@ module slm_invsqrt (
       case (state)
         S_IDLE: begin
           if (start) begin
-            v_r   <= in_v;
+            v_r   <= in_v[VW-1:0];
             r_r   <= 16'd0;
             bit_i <= 4'd15;
             state <= S_CALC;
